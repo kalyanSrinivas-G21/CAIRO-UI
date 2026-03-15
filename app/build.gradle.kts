@@ -20,13 +20,23 @@ dependencies {
     // TeaVM standard library and JavaScript Object (JSO) APIs
     implementation("org.teavm:teavm-classlib:0.9.2")
     implementation("org.teavm:teavm-jso-apis:0.9.2")
+
+    // JUnit 5 (Jupiter) for unit testing on the standard JVM
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
 }
 
 teavm {
     wasm {
-        mainClass = "com.uiframework.cairo.Main"
+        mainClass = "com.uiframework.practice.DrawTest"
         targetFileName = "app.wasm"
-        outputDir = file("build/wasm")    }
+        outputDir = file("build/wasm")
+        isAddedToWebApp = true
+    }
+}
+
+// Configure Gradle to use the JUnit Platform for executing tests
+tasks.named<Test>("test") {
+    useJUnitPlatform()
 }
 
 // Convenience task to copy index.html into the Wasm build directory
