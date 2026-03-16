@@ -3,10 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAIRO Wasm UI Framework</title>
+    <title>CAIRO UI Framework</title>
     <script type="text/javascript" src="app.wasm.js"></script>
 </head>
-<body onload="main()">
+<body>
 <canvas id="ui-canvas" width="800" height="600" style="border: 1px solid #ccc;"></canvas>
+
+<script type="text/javascript">
+    TeaVM.wasm.load("app.wasm", {
+        installImports: TeaVM.wasm.buildImports()
+    }).then(teavm => {
+        teavm.main();
+    }).catch(err => {
+        console.error("Failed to load Wasm module:", err);
+    });
+</script>
 </body>
 </html>
