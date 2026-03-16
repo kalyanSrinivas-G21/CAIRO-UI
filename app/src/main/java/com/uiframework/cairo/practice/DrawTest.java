@@ -1,4 +1,4 @@
-package com.uiframework.practice;
+package com.uiframework.cairo.practice;
 
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.canvas.CanvasRenderingContext2D;

@@ -20,16 +20,19 @@ dependencies {
     // Standard library and JSO APIs (works natively with the JS target)
     implementation("org.teavm:teavm-classlib:0.9.2")
     implementation("org.teavm:teavm-jso-apis:0.9.2")
+
+    // JUnit 5 Test Implementation
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+
+    // CRITICAL HOTFIX: Required by modern Gradle to execute JUnit 5 tests
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 teavm {
-    // PIVOT: Compiling to JavaScript for robust DOM and Canvas interaction
     js {
-        mainClass = "com.uiframework.practice.DrawTest"
+        mainClass = "com.uiframework.cairo.practice.DrawTest"
         targetFileName = "app.js"
         outputDir = file("build/js")
-        // Disabling obfuscation makes debugging in the browser console much easier
         obfuscated = false
     }
 }
@@ -38,7 +41,6 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
 }
 
-// Updated to depend on the JS compilation task and output to the new directory
 val prepareWebDir by tasks.registering(Copy::class) {
     dependsOn("generateJavaScript")
     from("src/main/webapp")
