@@ -4,9 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CAIRO UI Framework</title>
+    <style>
+        body {
+            background-color: #1a2a4a; /* Deep Navy Background */
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+        canvas {
+            background-color: #ffffff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 4px;
+            cursor: default;
+        }
+    </style>
     <script type="text/javascript" src="js/app.js"></script>
 </head>
 <body onload="main()">
-    <canvas id="ui-canvas" width="800" height="600" style="border: 1px solid #ccc;"></canvas>
+<canvas id="ui-canvas" width="900" height="700"></canvas>
 </body>
 </html>
