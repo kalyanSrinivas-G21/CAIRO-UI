@@ -17,17 +17,20 @@ repositories {
 }
 
 dependencies {
+    // Standard library and JSO APIs (works natively with the JS target)
     implementation("org.teavm:teavm-classlib:0.9.2")
     implementation("org.teavm:teavm-jso-apis:0.9.2")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
 }
 
 teavm {
-    // REVERTED: Strictly targeting WebAssembly per architecture constraints
-    wasm {
+    // PIVOT: Compiling to JavaScript for robust DOM and Canvas interaction
+    js {
         mainClass = "com.uiframework.practice.DrawTest"
-        targetFileName = "app.wasm"
-        outputDir = file("build/wasm")
+        targetFileName = "app.js"
+        outputDir = file("build/js")
+        // Disabling obfuscation makes debugging in the browser console much easier
+        obfuscated = false
     }
 }
 
@@ -35,11 +38,11 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
 }
 
-// Updated to output back to the build/wasm directory
+// Updated to depend on the JS compilation task and output to the new directory
 val prepareWebDir by tasks.registering(Copy::class) {
-    dependsOn("generateWasm")
+    dependsOn("generateJavaScript")
     from("src/main/webapp")
-    into("build/wasm")
+    into("build/js")
 }
 
 tasks.named("build") {
