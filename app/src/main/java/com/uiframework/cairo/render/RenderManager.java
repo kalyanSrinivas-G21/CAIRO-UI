@@ -8,16 +8,18 @@ import org.teavm.jso.canvas.CanvasRenderingContext2D;
 
 /**
  * The RenderManager orchestrates the recursive painting of the component tree.
- * Upgraded to act as a State Observer for high-performance selective rendering.
+ * Now equipped with telemetry metrics to measure rendering efficiency.
  */
 public class RenderManager implements StateChangeListener {
 
-    // Flag to track if any component in the tree has requested a redraw
     private boolean renderPending = false;
+
+    // --- TELEMETRY METRICS ---
+    public static int paintCallsThisFrame = 0;
+    public static int lastFramePaintCount = 0;
 
     @Override
     public void onStateChanged(Component source) {
-        // A component was marked dirty. Flag the engine to render the next frame.
         this.renderPending = true;
     }
 
@@ -30,12 +32,19 @@ public class RenderManager implements StateChangeListener {
     }
 
     /**
-     * Recursively renders the tree, pruning branches that are clean or invisible.
-     *
-     * @param root The component (or root of a tree) to be rendered.
-     * @param ctx  The HTML5 Canvas 2D context.
+     * Wrapper method to initialize telemetry for the current frame
+     * and begin the recursive optimization loop. WebWindow should call this.
      */
-    public static void renderOptimized(Component root, CanvasRenderingContext2D ctx) {
+    public static void renderFrame(Component root, CanvasRenderingContext2D ctx) {
+        paintCallsThisFrame = 0;
+        renderOptimized(root, ctx);
+        lastFramePaintCount = paintCallsThisFrame;
+    }
+
+    /**
+     * Recursively renders the tree, pruning branches that are clean or invisible.
+     */
+    private static void renderOptimized(Component root, CanvasRenderingContext2D ctx) {
         // 1. Prune: Skip entirely if hidden or if no state has changed in this branch
         if (root == null || !root.isVisible() || !root.isDirty()) {
             return;
@@ -50,7 +59,7 @@ public class RenderManager implements StateChangeListener {
             double w = (double) root.getWidth();
             double h = (double) root.getHeight();
 
-            // 3. Clip: Apply boundaries, respecting rounded corners if it's a Panel
+            // 3. Clip: Apply boundaries
             ctx.beginPath();
             if (root instanceof Panel p && p.getCornerRadius() > 0) {
                 double r = (double) p.getCornerRadius();
@@ -69,18 +78,21 @@ public class RenderManager implements StateChangeListener {
             }
             ctx.clip();
 
-            // 4. Paint & Clean: Draw the component and instantly clear its dirty flag
+            // --- TELEMETRY TRACKING ---
+            paintCallsThisFrame++;
+
+            // 4. Paint & Clean
             root.paint(ctx);
             root.clearDirty();
 
-            // 5. Recurse: Traverse children if applicable
+            // 5. Recurse
             if (root instanceof Container container) {
                 for (Component child : container.getChildren()) {
                     renderOptimized(child, ctx);
                 }
             }
         } finally {
-            // 6. Restore: Revert canvas state safely
+            // 6. Restore
             ctx.restore();
         }
     }

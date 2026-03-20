@@ -92,7 +92,7 @@ public class WebWindow {
         ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
         // Execute the pruned, high-performance rendering pass
-        RenderManager.renderOptimized(rootComponent, ctx);
+        RenderManager.renderFrame(rootComponent, ctx);
 
         // Reset the global engine flag for the next frame
         renderManager.clearRenderPending();

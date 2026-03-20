@@ -101,4 +101,8 @@ public class Panel extends Container {
         ctx.quadraticCurveTo(x, y, x + r, y);
         ctx.closePath();
     }
+
+    public int getCornerRadius() {
+        return this.cornerRadius;
+    }
 }
