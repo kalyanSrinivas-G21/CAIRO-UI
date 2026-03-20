@@ -1,6 +1,7 @@
 package com.uiframework.cairo.components;
 
 import com.uiframework.cairo.core.LeafComponent;
+import com.uiframework.cairo.core.Size;
 import org.teavm.jso.canvas.CanvasRenderingContext2D;
 
 /**
@@ -20,6 +21,14 @@ public class TextField extends LeafComponent {
     private String textColor = "#333333";
     private String font = "14px monospace";
 
+    /**
+     * Constructs a TextField with specified bounds.
+     *
+     * @param x Local X coordinate.
+     * @param y Local Y coordinate.
+     * @param w Component width.
+     * @param h Component height.
+     */
     public TextField(int x, int y, int w, int h) {
         this.x = x;
         this.y = y;
@@ -29,10 +38,12 @@ public class TextField extends LeafComponent {
 
     /**
      * Appends a character at the current cursor position.
+     * @param c Character to add.
      */
     public void appendChar(char c) {
         textBuffer.insert(cursorPos, c);
         cursorPos++;
+        invalidate(); // Layout may need to change if text grows
         markDirty();
     }
 
@@ -43,19 +54,32 @@ public class TextField extends LeafComponent {
         if (cursorPos > 0) {
             textBuffer.deleteCharAt(cursorPos - 1);
             cursorPos--;
+            invalidate();
             markDirty();
         }
     }
 
     /**
      * Sets the focus state of the text field.
-     * Triggers a redraw if the focus state changes (to update the border and cursor).
+     * @param f True to focus, false to blur.
      */
     public void setFocused(boolean f) {
         if (this.focused != f) {
             this.focused = f;
             markDirty();
         }
+    }
+
+    /**
+     * Fulfills the Component contract for preferred sizing.
+     * @return The ideal size for the text field.
+     */
+    @Override
+    public Size getPreferredSize() {
+        // Monospace approximation: 8px per char + 12px padding
+        int textWidth = textBuffer.length() * 8;
+        int prefWidth = Math.max(150, textWidth + 12);
+        return new Size(prefWidth, 30);
     }
 
     @Override
@@ -67,41 +91,31 @@ public class TextField extends LeafComponent {
         double w = (double) width;
         double h = (double) height;
 
-        // 1. Draw Background
         ctx.setFillStyle(backgroundColor);
         ctx.fillRect(absX, absY, w, h);
 
-        // 2. Draw Border
         ctx.setLineWidth(focused ? 2.0 : 1.0);
         ctx.setStrokeStyle(focused ? focusBorderColor : borderColor);
         ctx.strokeRect(absX, absY, w, h);
 
-        // 3. Draw Text
         ctx.setFillStyle(textColor);
         ctx.setFont(font);
         ctx.setTextAlign("left");
         ctx.setTextBaseline("middle");
 
-        // Add a small horizontal padding of 6px
         ctx.fillText(textBuffer.toString(), absX + 6, absY + (h / 2.0));
 
-        // 4. Draw Cursor if focused
         if (focused) {
             ctx.setFillStyle(focusBorderColor);
-            // Estimate x-offset: padding + (cursor index * estimated char width)
-            // Using 8px as an approximation for monospace characters
             double cursorX = absX + 6 + (cursorPos * 8.0);
-            double cursorY = absY + (h * 0.2); // 20% down from top
-            double cursorHeight = h * 0.6;    // 60% of total height
-
+            double cursorY = absY + (h * 0.2);
+            double cursorHeight = h * 0.6;
             ctx.fillRect(cursorX, cursorY, 2.0, cursorHeight);
         }
 
-        // Reset baseline
         ctx.setTextBaseline("alphabetic");
     }
 
-    // Getters
     public String getText() { return textBuffer.toString(); }
     public boolean isFocused() { return focused; }
     public int getCursorPos() { return cursorPos; }

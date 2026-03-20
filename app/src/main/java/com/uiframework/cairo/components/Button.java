@@ -2,6 +2,7 @@ package com.uiframework.cairo.components;
 
 import com.uiframework.cairo.core.LeafComponent;
 import org.teavm.jso.canvas.CanvasRenderingContext2D;
+import com.uiframework.cairo.core.Size;
 
 /**
  * A concrete UI component representing an interactive button.
@@ -32,6 +33,14 @@ public class Button extends LeafComponent {
         this.height = h;
         this.label = label;
     }
+
+    @Override
+    public Size getPreferredSize() {
+        int prefWidth = (label != null) ? (label.length() * 8) + 20 : 60;
+        return new Size(prefWidth, 30);
+    }
+
+
 
     @Override
     public void paint(CanvasRenderingContext2D ctx) {

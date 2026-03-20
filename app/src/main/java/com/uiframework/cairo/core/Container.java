@@ -65,14 +65,46 @@ public abstract class Container extends Component {
 
     /**
      * Sets the strategy used to position children within this container.
+     *
+     * @param layoutManager The new LayoutManager to use.
      */
     public void setLayoutManager(LayoutManager layoutManager) {
         this.layoutManager = layoutManager;
         invalidate();
     }
 
+    /**
+     * @return The current LayoutManager assigned to this container.
+     */
     public LayoutManager getLayoutManager() {
         return layoutManager;
+    }
+
+    /**
+     * Executes the layout logic if the current layout is flagged as invalid.
+     * Recursively validates all child containers to ensure the entire tree
+     * is correctly positioned before rendering.
+     */
+    public void validate() {
+        // If the layout is already valid, do nothing
+        if (layoutValid) {
+            return;
+        }
+
+        // Execute layout if a manager exists
+        if (layoutManager != null) {
+            layoutManager.layout(this);
+        }
+
+        // Flag this level as valid
+        this.layoutValid = true;
+
+        // Recursively validate child containers
+        for (Component child : children) {
+            if (child instanceof Container container) {
+                container.validate();
+            }
+        }
     }
 
     /**
@@ -91,13 +123,16 @@ public abstract class Container extends Component {
         return new Size(width, height);
     }
 
+    /**
+     * Invalidates the current layout state of this component and propagates
+     * the invalidation up to the root of the component tree.
+     */
     @Override
     public void invalidate() {
-        // First, invalidate our own layout state
+        // Mark this container's layout as invalid
         this.layoutValid = false;
 
-        // Then, propagate to our parent so the entire branch knows it is "dirty"
-        // from a layout perspective.
+        // Propagate the invalidation upward so the root knows a change occurred
         if (parent != null) {
             parent.invalidate();
         }
