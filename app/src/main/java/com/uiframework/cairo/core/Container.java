@@ -6,11 +6,13 @@ import java.util.List;
 
 /**
  * An abstract Component that can contain other components.
- * Manages the N-ary tree structure for the Composite design pattern.
+ * Manages the N-ary tree structure for the Composite design pattern
+ * and coordinates with a LayoutManager for automated positioning.
  */
 public abstract class Container extends Component {
 
     private final List<Component> children = new ArrayList<>();
+    private LayoutManager layoutManager;
 
     /**
      * Adds a child component to this container, establishing the parent-child relationship.
@@ -24,7 +26,10 @@ public abstract class Container extends Component {
         }
         child.parent = this;
         children.add(child);
-        markDirty(); // The tree has changed, require a re-layout/re-render
+
+        // A structural change requires both a new layout pass and a repaint
+        invalidate();
+        markDirty();
     }
 
     /**
@@ -36,6 +41,7 @@ public abstract class Container extends Component {
     public void removeChild(Component child) {
         if (children.remove(child)) {
             child.parent = null;
+            invalidate();
             markDirty();
         }
     }
@@ -55,5 +61,45 @@ public abstract class Container extends Component {
      */
     public int getChildCount() {
         return children.size();
+    }
+
+    /**
+     * Sets the strategy used to position children within this container.
+     */
+    public void setLayoutManager(LayoutManager layoutManager) {
+        this.layoutManager = layoutManager;
+        invalidate();
+    }
+
+    public LayoutManager getLayoutManager() {
+        return layoutManager;
+    }
+
+    /**
+     * Calculates the ideal size for this container.
+     * If a LayoutManager is present, it negotiates the size based on children;
+     * otherwise, it defaults to the current dimensions.
+     */
+    @Override
+    public Size getPreferredSize() {
+        if (layoutManager != null) {
+            return new Size(
+                    layoutManager.getPreferredWidth(this),
+                    layoutManager.getPreferredHeight(this)
+            );
+        }
+        return new Size(width, height);
+    }
+
+    @Override
+    public void invalidate() {
+        // First, invalidate our own layout state
+        this.layoutValid = false;
+
+        // Then, propagate to our parent so the entire branch knows it is "dirty"
+        // from a layout perspective.
+        if (parent != null) {
+            parent.invalidate();
+        }
     }
 }

@@ -1,6 +1,8 @@
 package com.uiframework.cairo.components;
 
 import com.uiframework.cairo.core.Container;
+import com.uiframework.cairo.core.LayoutManager;
+import com.uiframework.cairo.core.Size;
 import org.teavm.jso.canvas.CanvasRenderingContext2D;
 
 /**
@@ -43,6 +45,20 @@ public class Panel extends Container {
         this.cornerRadius = radius;
         markDirty();
         return this;
+    }
+
+    /**
+     * Calculates the ideal size for this Panel.
+     * If a LayoutManager is present, it delegates the calculation;
+     * otherwise, it returns the current dimensions.
+     */
+    @Override
+    public Size getPreferredSize() {
+        LayoutManager lm = getLayoutManager();
+        if (lm != null) {
+            return new Size(lm.getPreferredWidth(this), lm.getPreferredHeight(this));
+        }
+        return new Size(width, height);
     }
 
     @Override

@@ -37,15 +37,23 @@ class ComponentTreeTest {
         root.addChild(inner);
         inner.addChild(button);
 
+        // Clear all initial dirty flags from instantiation
         root.clearDirty();
         inner.clearDirty();
         button.clearDirty();
 
+        // Mutate the child button
         button.markDirty();
 
-        assertTrue(button.isDirty());
-        assertTrue(inner.isDirty());
-        assertTrue(root.isDirty());
+        // The button itself should be marked for repaint
+        assertTrue(button.isSelfDirty(), "Button should be self-dirty");
+
+        // The parents should ONLY flag that a child changed, avoiding a full repaint of themselves
+        assertTrue(inner.isChildDirty(), "Inner panel should be child-dirty");
+        assertFalse(inner.isSelfDirty(), "Inner panel should NOT be self-dirty");
+
+        assertTrue(root.isChildDirty(), "Root panel should be child-dirty");
+        assertFalse(root.isSelfDirty(), "Root panel should NOT be self-dirty");
     }
 
     @Test

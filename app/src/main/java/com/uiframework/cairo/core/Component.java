@@ -17,9 +17,11 @@ public abstract class Component {
     protected int width;
     protected int height;
 
-    // State flags
-    protected boolean dirty = true;
+    // Split State flags for optimized rendering
+    protected boolean selfDirty = true;
+    protected boolean childDirty = true;
     protected boolean visible = true;
+    protected boolean layoutValid = false;
 
     // Tree structure
     protected Component parent;
@@ -72,17 +74,25 @@ public abstract class Component {
     }
 
     /**
-     * @return True if the component needs to be redrawn or recalculated.
+     * @return True if this specific component's visual state has changed.
      */
-    public boolean isDirty() {
-        return dirty;
+    public boolean isSelfDirty() {
+        return selfDirty;
     }
 
     /**
-     * Clears the dirty flag, indicating the component is fully updated and rendered.
+     * @return True if a descendant of this component's visual state has changed.
+     */
+    public boolean isChildDirty() {
+        return childDirty;
+    }
+
+    /**
+     * Clears both dirty flags, indicating the component and its subtree are fully updated.
      */
     public void clearDirty() {
-        this.dirty = false;
+        this.selfDirty = false;
+        this.childDirty = false;
     }
 
     /**
@@ -107,18 +117,34 @@ public abstract class Component {
 
     /**
      * Marks this component as dirty, requiring a redraw.
-     * This propagates the dirty state up the component tree to the root and
+     * This propagates the child-dirty state up the component tree to the root and
      * notifies all registered observers.
      */
     public void markDirty() {
-        this.dirty = true;
-
-        if (parent != null) {
-            parent.markDirty();
-        }
+        this.selfDirty = true;
 
         for (StateChangeListener observer : observers) {
             observer.onStateChanged(this);
+        }
+
+        if (parent != null) {
+            parent.markChildDirty();
+        }
+    }
+
+    /**
+     * Marks that a descendant of this component needs a repaint.
+     * Short-circuits if already flagged to optimize deep tree traversal.
+     */
+    protected void markChildDirty() {
+        if (this.childDirty) {
+            return; // Optimization: Ancestors are already aware
+        }
+
+        this.childDirty = true;
+
+        if (parent != null) {
+            parent.markChildDirty();
         }
     }
 
@@ -162,4 +188,24 @@ public abstract class Component {
     public boolean isVisible() {
         return visible;
     }
+
+    /**
+     * Invalidates the current layout state of this component and propagates
+     * the invalidation up to the root of the component tree.
+     */
+    public void invalidate() {
+        this.layoutValid = false;
+        if (parent != null) {
+            parent.invalidate();
+        }
+    }
+
+    /**
+     * Subclasses must implement this to return their desired size
+     * based on their internal content (e.g., text length or image dimensions).
+     */
+    public abstract Size getPreferredSize();
+
+    // Note: Ensure setBounds calls invalidate() or markDirty calls it
+    // depending on if a bounds change should trigger a re-layout.
 }

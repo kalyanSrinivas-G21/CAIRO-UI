@@ -8,7 +8,7 @@ import org.teavm.jso.canvas.CanvasRenderingContext2D;
 
 /**
  * The RenderManager orchestrates the recursive painting of the component tree.
- * Now equipped with telemetry metrics to measure rendering efficiency.
+ * Hardened to prevent opaque overdraw by respecting self vs. child dirty states.
  */
 public class RenderManager implements StateChangeListener {
 
@@ -46,7 +46,7 @@ public class RenderManager implements StateChangeListener {
      */
     private static void renderOptimized(Component root, CanvasRenderingContext2D ctx) {
         // 1. Prune: Skip entirely if hidden or if no state has changed in this branch
-        if (root == null || !root.isVisible() || !root.isDirty()) {
+        if (root == null || !root.isVisible() || (!root.isSelfDirty() && !root.isChildDirty())) {
             return;
         }
 
@@ -59,7 +59,7 @@ public class RenderManager implements StateChangeListener {
             double w = (double) root.getWidth();
             double h = (double) root.getHeight();
 
-            // 3. Clip: Apply boundaries
+            // 3. Clip: Apply boundaries. MUST run even if only children are dirty to constrain them!
             ctx.beginPath();
             if (root instanceof Panel p && p.getCornerRadius() > 0) {
                 double r = (double) p.getCornerRadius();
@@ -78,21 +78,22 @@ public class RenderManager implements StateChangeListener {
             }
             ctx.clip();
 
-            // --- TELEMETRY TRACKING ---
-            paintCallsThisFrame++;
+            // 4. Paint: ONLY paint if this specific component changed
+            if (root.isSelfDirty()) {
+                // --- TELEMETRY TRACKING ---
+                paintCallsThisFrame++;
+                root.paint(ctx);
+            }
 
-            // 4. Paint & Clean
-            root.paint(ctx);
-            root.clearDirty();
-
-            // 5. Recurse
+            // 5. Recurse: Traverse children if the container or its children are dirty
             if (root instanceof Container container) {
                 for (Component child : container.getChildren()) {
                     renderOptimized(child, ctx);
                 }
             }
         } finally {
-            // 6. Restore
+            // 6. Restore & Clean
+            root.clearDirty();
             ctx.restore();
         }
     }
