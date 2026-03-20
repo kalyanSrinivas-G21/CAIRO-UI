@@ -30,9 +30,10 @@ dependencies {
 
 teavm {
     js {
-        mainClass = "com.uiframework.cairo.practice.DrawTest"
+        // Change from "com.uiframework.practice.DrawTest" to this:
+        mainClass = "com.uiframework.cairo.demo.VisualDemo"
         targetFileName = "app.js"
-        outputDir = file("build/js")
+        outputDir = file("build/js") // Ensuring we output to the nested JS folder
         obfuscated = false
     }
 }
