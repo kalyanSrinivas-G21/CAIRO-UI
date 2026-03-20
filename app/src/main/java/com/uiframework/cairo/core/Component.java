@@ -86,6 +86,26 @@ public abstract class Component {
     }
 
     /**
+     * Subscribes a listener to receive state change notifications from this component.
+     *
+     * @param listener The observer to add.
+     */
+    public void addObserver(StateChangeListener listener) {
+        if (!observers.contains(listener)) {
+            observers.add(listener);
+        }
+    }
+
+    /**
+     * Unsubscribes a listener from this component.
+     *
+     * @param listener The observer to remove.
+     */
+    public void removeObserver(StateChangeListener listener) {
+        observers.remove(listener);
+    }
+
+    /**
      * Marks this component as dirty, requiring a redraw.
      * This propagates the dirty state up the component tree to the root and
      * notifies all registered observers.
