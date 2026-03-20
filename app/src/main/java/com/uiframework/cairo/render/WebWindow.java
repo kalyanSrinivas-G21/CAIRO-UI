@@ -8,7 +8,6 @@ import org.teavm.jso.dom.html.HTMLDocument;
 
 /**
  * The WebWindow serves as the primary host for the UI framework within the browser.
- * It manages the HTML5 Canvas lifecycle, high-DPI scaling, and the animation loop.
  * * ARCHITECTURE NOTE:
  * WebAssembly and JavaScript execute in a single-threaded environment. Unlike
  * traditional Java desktop frameworks (Swing/AWT) that require an Event Dispatch
@@ -21,7 +20,9 @@ public class WebWindow {
     private final CanvasRenderingContext2D ctx;
     private Component rootComponent;
 
-    // We store the logical CSS dimensions to correctly clear the canvas each frame
+    // The instantiated RenderManager now tracks global tree state
+    private final RenderManager renderManager;
+
     private int logicalWidth;
     private int logicalHeight;
 
@@ -34,56 +35,54 @@ public class WebWindow {
         }
 
         this.ctx = (CanvasRenderingContext2D) canvasElement.getContext("2d");
+        this.renderManager = new RenderManager();
 
-        // Initialize High-DPI scaling immediately after context retrieval
         setupHighDPI();
     }
 
-    /**
-     * Configures the canvas for High-DPI (Retina) displays.
-     * Note: HTML5 Canvas natively handles double-buffering.
-     */
     private void setupHighDPI() {
         double ratio = Window.current().getDevicePixelRatio();
         if (ratio <= 0.0) {
             ratio = 2.0;
         }
 
-        // Get logical (CSS) dimensions
         logicalWidth = canvasElement.getClientWidth();
         logicalHeight = canvasElement.getClientHeight();
 
-        // Lock physical CSS size
         canvasElement.getStyle().setProperty("width", logicalWidth + "px");
         canvasElement.getStyle().setProperty("height", logicalHeight + "px");
 
-        // Scale internal buffer
         canvasElement.setWidth((int) (logicalWidth * ratio));
         canvasElement.setHeight((int) (logicalHeight * ratio));
 
-        // Scale context
         ctx.scale(ratio, ratio);
     }
 
     public void setRoot(Component root) {
+        // Disconnect old root if one exists
+        if (this.rootComponent != null) {
+            this.rootComponent.removeObserver(this.renderManager);
+        }
+
         this.rootComponent = root;
+
+        // Connect the new root to our rendering observer
+        if (this.rootComponent != null) {
+            this.rootComponent.addObserver(this.renderManager);
+            this.rootComponent.markDirty(); // Trigger the initial draw
+        }
     }
 
     public void startRenderLoop() {
         scheduleFrame();
     }
 
-    /**
-     * Schedules the next frame using the browser's native requestAnimationFrame API.
-     * The callback is kept lightweight to ensure high performance.
-     */
     private void scheduleFrame() {
         Window.current().requestAnimationFrame(timestamp -> {
-            // Lightweight null-check before delegating to the rendering engine
-            if (rootComponent != null) {
+            // Only execute canvas clearing and tree traversal if a change actually occurred
+            if (rootComponent != null && renderManager.isRenderPending()) {
                 performFrameRender();
             }
-            // Recursive call to maintain the loop
             scheduleFrame();
         });
     }
@@ -92,7 +91,10 @@ public class WebWindow {
         // Clear the canvas using the logical CSS dimensions
         ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
-        // Delegate recursive tree rendering to the RenderManager
-        RenderManager.render(rootComponent, ctx);
+        // Execute the pruned, high-performance rendering pass
+        RenderManager.renderOptimized(rootComponent, ctx);
+
+        // Reset the global engine flag for the next frame
+        renderManager.clearRenderPending();
     }
 }
