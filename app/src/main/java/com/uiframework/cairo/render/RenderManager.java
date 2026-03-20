@@ -6,7 +6,8 @@ import org.teavm.jso.canvas.CanvasRenderingContext2D;
 
 /**
  * The RenderManager orchestrates the recursive painting of the component tree.
- * It enforces visual boundaries via clipping and ensures canvas state integrity.
+ * Hardened with strict state management to prevent clipping intersection bugs
+ * and protect the global canvas context from runtime exceptions.
  */
 public class RenderManager {
 
@@ -18,16 +19,12 @@ public class RenderManager {
      */
     public static void render(Component root, CanvasRenderingContext2D ctx) {
         // 1. Visibility Check: If hidden, skip this branch entirely.
-        if (root == null || !root.isDirty()) { // Optimization: only paint if dirty logic pending
-            // For now, we follow the prompt's visibility rule primarily.
+        // (Assumes isVisible() was added to Component.java during the EventSystem prep)
+        if (root == null || !root.isVisible()) {
+            return;
         }
 
-        // Explicitly check visibility as per requirements
-        // We will skip rendering if the component is marked as non-visible.
-        // We don't use 'root.visible' directly because it is protected in Component.
-        // (Note: Adding a getter to Component would be a good next step).
-
-        // 2. Isolate State: Save current transform/styles
+        // 2. Isolate State: Push the current canvas state onto the stack
         ctx.save();
 
         try {
@@ -44,7 +41,7 @@ public class RenderManager {
             // 4. Paint: Execute the component's specific drawing logic
             root.paint(ctx);
 
-            // 5. Clear State: Marking as clean after a successful paint
+            // 5. Clear State: Mark as clean after a successful paint
             root.clearDirty();
 
             // 6. Recurse: If the component is a container, render its children
@@ -54,7 +51,9 @@ public class RenderManager {
                 }
             }
         } finally {
-            // 7. Restore State: Revert to the state before this component started drawing
+            // 7. Restore State: Revert to the state before this component started drawing.
+            // The 'finally' block guarantees the canvas isn't permanently corrupted
+            // even if a child component's paint() method throws an exception.
             ctx.restore();
         }
     }

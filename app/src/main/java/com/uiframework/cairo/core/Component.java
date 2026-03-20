@@ -135,4 +135,11 @@ public abstract class Component {
      * @param ctx The HTML5 Canvas 2D rendering context.
      */
     public abstract void paint(CanvasRenderingContext2D ctx);
+
+    /**
+     * @return true if the component is currently flagged to be drawn, false otherwise.
+     */
+    public boolean isVisible() {
+        return visible;
+    }
 }
