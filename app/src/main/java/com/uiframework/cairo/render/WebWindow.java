@@ -9,6 +9,11 @@ import org.teavm.jso.dom.html.HTMLDocument;
 /**
  * The WebWindow serves as the primary host for the UI framework within the browser.
  * It manages the HTML5 Canvas lifecycle, high-DPI scaling, and the animation loop.
+ * * ARCHITECTURE NOTE:
+ * WebAssembly and JavaScript execute in a single-threaded environment. Unlike
+ * traditional Java desktop frameworks (Swing/AWT) that require an Event Dispatch
+ * Thread (EDT), all UI updates, event handling, and rendering in CAIRO happen
+ * on the browser's main thread. This eliminates race conditions by design.
  */
 public class WebWindow {
 
@@ -35,31 +40,28 @@ public class WebWindow {
     }
 
     /**
-     * Configures the canvas for High-DPI (Retina) displays to ensure crisp text and vector rendering.
-     * Note: HTML5 Canvas natively handles double-buffering, so no manual off-screen
-     * buffer management is required for flicker-free rendering.
+     * Configures the canvas for High-DPI (Retina) displays.
+     * Note: HTML5 Canvas natively handles double-buffering.
      */
     private void setupHighDPI() {
-        // Fetch the device pixel ratio (fallback to 2.0 if undefined/unsupported)
         double ratio = Window.current().getDevicePixelRatio();
         if (ratio <= 0.0) {
             ratio = 2.0;
         }
 
-        // 1. Get the logical (CSS) dimensions defined in the HTML
+        // Get logical (CSS) dimensions
         logicalWidth = canvasElement.getClientWidth();
         logicalHeight = canvasElement.getClientHeight();
 
-        // 2. Lock the physical CSS size so the canvas doesn't visually expand on the screen
+        // Lock physical CSS size
         canvasElement.getStyle().setProperty("width", logicalWidth + "px");
         canvasElement.getStyle().setProperty("height", logicalHeight + "px");
 
-        // 3. Scale the internal canvas buffer resolution up by the device ratio
+        // Scale internal buffer
         canvasElement.setWidth((int) (logicalWidth * ratio));
         canvasElement.setHeight((int) (logicalHeight * ratio));
 
-        // 4. Scale the rendering context. All subsequent draw calls (e.g., fillRect(10, 10, 50, 50))
-        // will automatically be multiplied by the ratio, keeping our framework math simple.
+        // Scale context
         ctx.scale(ratio, ratio);
     }
 
@@ -71,17 +73,23 @@ public class WebWindow {
         scheduleFrame();
     }
 
+    /**
+     * Schedules the next frame using the browser's native requestAnimationFrame API.
+     * The callback is kept lightweight to ensure high performance.
+     */
     private void scheduleFrame() {
         Window.current().requestAnimationFrame(timestamp -> {
+            // Lightweight null-check before delegating to the rendering engine
             if (rootComponent != null) {
                 performFrameRender();
             }
+            // Recursive call to maintain the loop
             scheduleFrame();
         });
     }
 
     private void performFrameRender() {
-        // Clear the canvas using the logical CSS dimensions, as the context is currently scaled
+        // Clear the canvas using the logical CSS dimensions
         ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
         // Delegate recursive tree rendering to the RenderManager
