@@ -5,11 +5,13 @@ import com.uiframework.cairo.components.Panel;
 import com.uiframework.cairo.core.Anchor;
 import com.uiframework.cairo.core.Constraints;
 import com.uiframework.cairo.layout.BorderLayout;
+import com.uiframework.cairo.layout.VerticalLayout;
 import com.uiframework.cairo.render.WebWindow;
 
 /**
  * Demonstrates the BorderLayout by creating a classic application shell
  * with a header, sidebar, and a flexible main workspace.
+ * Corrected to apply the VerticalLayout with minWidth to the Sidebar.
  */
 public class LayoutDemo {
 
@@ -31,6 +33,15 @@ public class LayoutDemo {
         sidebar.withBackground("#2f3640")
                 .withBorder("#191e24", 1);
         sidebar.setConstraints(new Constraints(Anchor.WEST, 0.0));
+
+        // CRITICAL FIX: The other agent missed this line!
+        // We must tell the sidebar to stack vertically and enforce a 180px minimum width.
+        sidebar.setLayoutManager(new VerticalLayout(10, 10, 180));
+
+        // Add a few test buttons so the sidebar isn't empty
+        sidebar.addChild(new Button(0, 0, 0, 0, "Dashboard"));
+        sidebar.addChild(new Button(0, 0, 0, 0, "Settings"));
+
         root.addChild(sidebar);
 
         // 4. Main Workspace (CENTER)
