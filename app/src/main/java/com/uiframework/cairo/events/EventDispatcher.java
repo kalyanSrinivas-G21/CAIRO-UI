@@ -2,14 +2,16 @@ package com.uiframework.cairo.event;
 
 import com.uiframework.cairo.core.Component;
 import com.uiframework.cairo.core.Container;
+import com.uiframework.cairo.core.FocusManager;
 import org.teavm.jso.JSProperty;
+import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.events.Event;
 import org.teavm.jso.dom.html.HTMLCanvasElement;
 
 /**
  * Acts as the bridge between raw browser JavaScript events and the CAIRO
- * component-based event system. It normalizes coordinates and performs
- * hit-testing to route interactions to the correct UI targets.
+ * component-based event system. Normalizes coordinates, hit-tests for mouse
+ * targets, and routes keyboard events to the focused component.
  */
 public class EventDispatcher {
 
@@ -17,8 +19,7 @@ public class EventDispatcher {
     private Component lastHovered;
 
     /**
-     * Private interface to map standard DOM offsetX/offsetY properties safely
-     * within the TeaVM JavaScript object ecosystem.
+     * Private interface to map standard DOM mouse properties cleanly.
      */
     private interface NativeMouseEvent extends Event {
         @JSProperty("offsetX")
@@ -29,7 +30,21 @@ public class EventDispatcher {
     }
 
     /**
-     * Initializes the EventDispatcher and binds native browser listeners to the Canvas.
+     * Private interface to map standard DOM keyboard properties cleanly.
+     */
+    private interface NativeKeyboardEvent extends Event {
+        @JSProperty("key")
+        String getKey();
+
+        @JSProperty("keyCode")
+        int getKeyCode();
+
+        @JSProperty("shiftKey")
+        boolean getShiftKey();
+    }
+
+    /**
+     * Initializes the EventDispatcher and binds native browser listeners.
      *
      * @param root   The root Container of the UI tree.
      * @param canvas The physical HTML5 Canvas element to listen on.
@@ -45,11 +60,13 @@ public class EventDispatcher {
 
         canvas.addEventListener("mousemove", evt ->
                 handleNativeMouse((NativeMouseEvent) evt, MouseEventType.MOUSE_MOVED));
+
+        Window.current().addEventListener("keydown", evt ->
+                handleNativeKey((NativeKeyboardEvent) evt));
     }
 
     /**
-     * Processes a raw browser event, identifies the target component, and dispatches
-     * framework-safe UIEvent objects. Also manages the enter/exit hover lifecycle.
+     * Processes a raw browser mouse event and manages focus transition upon clicks.
      *
      * @param evt  The native browser mouse event.
      * @param type The mapped CAIRO framework event type.
@@ -58,10 +75,18 @@ public class EventDispatcher {
         int x = evt.getOffsetX();
         int y = evt.getOffsetY();
 
-        // 1. Perform a hit-test to find the exact leaf component under the cursor
         Component target = root.getComponentAt(x, y);
 
-        // 2. Hover Lifecycle Management
+        // Manage Focus on Click
+        if (type == MouseEventType.MOUSE_PRESSED) {
+            if (target != null && target.isFocusable()) {
+                target.requestFocus();
+            } else {
+                FocusManager.setFocus(null); // Clicked dead space or un-focusable component
+            }
+        }
+
+        // Hover Lifecycle Management
         if (target != lastHovered) {
             if (lastHovered != null) {
                 lastHovered.fireEvent(new MouseEvent(lastHovered, MouseEventType.MOUSE_EXITED, x, y));
@@ -72,9 +97,22 @@ public class EventDispatcher {
             lastHovered = target;
         }
 
-        // 3. Dispatch the core action event (Click, Move, Press, Release)
+        // Dispatch the core action event
         if (target != null) {
             target.fireEvent(new MouseEvent(target, type, x, y));
+        }
+    }
+
+    /**
+     * Processes a raw browser keyboard event and routes it to the focused component.
+     *
+     * @param evt The native browser keyboard event.
+     */
+    private void handleNativeKey(NativeKeyboardEvent evt) {
+        Component focused = FocusManager.getFocusedComponent();
+        if (focused != null) {
+            KeyEvent keyEvent = new KeyEvent(focused, evt.getKey(), evt.getKeyCode(), evt.getShiftKey());
+            focused.fireEvent(keyEvent);
         }
     }
 }

@@ -9,7 +9,7 @@ import org.teavm.jso.canvas.CanvasRenderingContext2D;
 /**
  * The abstract base class for all UI elements in the CAIRO framework.
  * Defines spatial properties, the composite tree structure, state management,
- * layout constraints, hit testing, and the core event broadcasting mechanism.
+ * layout constraints, hit testing, focus handling, and the core event broadcasting mechanism.
  */
 public abstract class Component {
 
@@ -22,6 +22,7 @@ public abstract class Component {
     protected boolean childDirty = true;
     protected boolean visible = true;
     protected boolean layoutValid = false;
+    protected boolean focusable = false;
 
     protected Component parent;
     private Constraints constraints = new Constraints();
@@ -145,7 +146,6 @@ public abstract class Component {
 
     /**
      * Broadcasts a UI event to all registered event listeners.
-     * Visibility upgraded to public so EventDispatcher can trigger it.
      *
      * @param event The event object containing interaction details.
      */
@@ -234,5 +234,28 @@ public abstract class Component {
     public void setConstraints(Constraints constraints) {
         this.constraints = constraints;
         this.invalidate();
+    }
+
+    /**
+     * @return True if this component is allowed to receive keyboard focus.
+     */
+    public boolean isFocusable() {
+        return focusable;
+    }
+
+    /**
+     * Sets whether this component can receive keyboard focus.
+     *
+     * @param focusable True to allow focus, false to deny.
+     */
+    public void setFocusable(boolean focusable) {
+        this.focusable = focusable;
+    }
+
+    /**
+     * Requests the FocusManager to assign the global keyboard focus to this component.
+     */
+    public void requestFocus() {
+        FocusManager.setFocus(this);
     }
 }
