@@ -9,10 +9,7 @@ import org.teavm.jso.dom.html.HTMLDocument;
 
 /**
  * The WebWindow serves as the primary host for the UI framework within the browser.
- * * ARCHITECTURE NOTE:
- * WebAssembly and JavaScript execute in a single-threaded environment. All
- * layout, event handling, and rendering in CAIRO happen on the browser's
- * main thread to eliminate race conditions by design.
+ * Updated to support responsive root scaling to ensure the UI fills the canvas.
  */
 public class WebWindow {
 
@@ -49,6 +46,7 @@ public class WebWindow {
             ratio = 2.0;
         }
 
+        // Get the actual size from the browser CSS bounds
         logicalWidth = canvasElement.getClientWidth();
         logicalHeight = canvasElement.getClientHeight();
 
@@ -62,7 +60,7 @@ public class WebWindow {
     }
 
     /**
-     * Sets the root of the component tree.
+     * Sets the root of the component tree and forces it to match the canvas size.
      *
      * @param root The top-level component.
      */
@@ -74,7 +72,11 @@ public class WebWindow {
         this.rootComponent = root;
 
         if (this.rootComponent != null) {
+            // Force the root to fill the logical canvas dimensions
+            this.rootComponent.setBounds(0, 0, logicalWidth, logicalHeight);
+
             this.rootComponent.addObserver(this.renderManager);
+            this.rootComponent.invalidate();
             this.rootComponent.markDirty();
         }
     }
@@ -96,21 +98,15 @@ public class WebWindow {
     }
 
     /**
-     * Orchestrates the full frame lifecycle: Validation, Clearing, and Painting.
+     * Orchestrates the full frame lifecycle.
      */
     private void performFrameRender() {
-        // 1. Validation Pass: Ensure the layout is correct before painting
         if (rootComponent instanceof Container container) {
             container.validate();
         }
 
-        // 2. Clear Pass
         ctx.clearRect(0, 0, logicalWidth, logicalHeight);
-
-        // 3. Render Pass
         RenderManager.renderFrame(rootComponent, ctx);
-
-        // Reset the engine flag
         renderManager.clearRenderPending();
     }
 }

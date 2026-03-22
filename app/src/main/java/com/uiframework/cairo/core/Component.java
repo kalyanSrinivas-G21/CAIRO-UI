@@ -26,6 +26,9 @@ public abstract class Component {
     // Tree structure
     protected Component parent;
 
+    /** Layout metadata describing how this component should be positioned. */
+    private Constraints constraints = new Constraints();
+
     // Observers
     protected List<StateChangeListener> observers = new ArrayList<>();
 
@@ -206,6 +209,22 @@ public abstract class Component {
      */
     public abstract Size getPreferredSize();
 
-    // Note: Ensure setBounds calls invalidate() or markDirty calls it
-    // depending on if a bounds change should trigger a re-layout.
+    /**
+     * @return The layout constraints applied to this component.
+     */
+    public Constraints getConstraints() {
+        return constraints;
+    }
+
+    /**
+     * Updates the layout constraints for this component.
+     * Calling this method automatically triggers a layout invalidation up the tree,
+     * ensuring that the parent container re-evaluates the component's position.
+     *
+     * @param constraints The new constraints to apply.
+     */
+    public void setConstraints(Constraints constraints) {
+        this.constraints = constraints;
+        this.invalidate();
+    }
 }
