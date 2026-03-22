@@ -1,5 +1,6 @@
 package com.uiframework.cairo.render;
 
+import com.uiframework.cairo.animation.AnimationManager;
 import com.uiframework.cairo.core.Component;
 import com.uiframework.cairo.core.Container;
 import com.uiframework.cairo.event.EventDispatcher;
@@ -10,7 +11,7 @@ import org.teavm.jso.dom.html.HTMLDocument;
 
 /**
  * The WebWindow serves as the primary host for the UI framework within the browser.
- * Updated to initialize the EventDispatcher and pipe raw interactions into the UI tree.
+ * Updated to calculate Delta Time and pump the global AnimationManager.
  */
 public class WebWindow {
 
@@ -22,6 +23,7 @@ public class WebWindow {
 
     private int logicalWidth;
     private int logicalHeight;
+    private long lastTime;
 
     /**
      * Initializes the WebWindow and binds it to a specific HTML canvas.
@@ -38,6 +40,7 @@ public class WebWindow {
 
         this.ctx = (CanvasRenderingContext2D) canvasElement.getContext("2d");
         this.renderManager = new RenderManager();
+        this.lastTime = System.currentTimeMillis();
 
         setupHighDPI();
     }
@@ -79,7 +82,6 @@ public class WebWindow {
             this.rootComponent.invalidate();
             this.rootComponent.markDirty();
 
-            // Establish the event pipeline if the root is a container capable of hit-testing
             if (this.rootComponent instanceof Container container) {
                 this.eventDispatcher = new EventDispatcher(container, canvasElement);
             }
@@ -90,26 +92,41 @@ public class WebWindow {
      * Begins the browser-native animation loop.
      */
     public void startRenderLoop() {
+        this.lastTime = System.currentTimeMillis();
         scheduleFrame();
     }
 
     private void scheduleFrame() {
         Window.current().requestAnimationFrame(timestamp -> {
-            if (rootComponent != null && renderManager.isRenderPending()) {
+            boolean needsRender = renderManager.isRenderPending() || AnimationManager.getInstance().hasActiveTweens();
+
+            if (rootComponent != null && needsRender) {
                 performFrameRender();
+            } else {
+                // Keep the clock synced even if we skip rendering to prevent huge time jumps
+                lastTime = System.currentTimeMillis();
             }
             scheduleFrame();
         });
     }
 
     /**
-     * Orchestrates the full frame lifecycle.
+     * Orchestrates the full frame lifecycle including animations, layout, and painting.
      */
     private void performFrameRender() {
+        // 1. Delta Time Calculation & Animation Pump
+        long currentTime = System.currentTimeMillis();
+        long delta = currentTime - lastTime;
+        lastTime = currentTime;
+
+        AnimationManager.getInstance().tick(delta);
+
+        // 2. Layout Validation
         if (rootComponent instanceof Container container) {
             container.validate();
         }
 
+        // 3. Render Pass
         ctx.clearRect(0, 0, logicalWidth, logicalHeight);
         RenderManager.renderFrame(rootComponent, ctx);
         renderManager.clearRenderPending();

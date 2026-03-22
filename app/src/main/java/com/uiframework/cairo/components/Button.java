@@ -1,5 +1,8 @@
 package com.uiframework.cairo.components;
 
+import com.uiframework.cairo.animation.AnimationManager;
+import com.uiframework.cairo.animation.Interpolator;
+import com.uiframework.cairo.animation.Tween;
 import com.uiframework.cairo.core.LeafComponent;
 import com.uiframework.cairo.core.Size;
 import com.uiframework.cairo.event.MouseEvent;
@@ -8,8 +11,7 @@ import org.teavm.jso.canvas.CanvasRenderingContext2D;
 
 /**
  * A concrete UI component representing an interactive button.
- * Integrates directly with the CAIRO event architecture to automatically
- * manage visual hover and press states.
+ * Uses the Tween engine to perform smooth, 300ms visual transitions on hover.
  */
 public class Button extends LeafComponent {
 
@@ -29,15 +31,10 @@ public class Button extends LeafComponent {
     private String textColor = "white";
     private String font = "bold 14px sans-serif";
 
-    /**
-     * Constructs a button and attaches internal listeners for state management.
-     *
-     * @param x     Local X coordinate.
-     * @param y     Local Y coordinate.
-     * @param w     Width of the button.
-     * @param h     Height of the button.
-     * @param label The text displayed on the button.
-     */
+    // Animation state
+    private double hoverAlpha = 0.0;
+    private Tween activeTween;
+
     public Button(int x, int y, int w, int h, String label) {
         this.x = x;
         this.y = y;
@@ -45,7 +42,6 @@ public class Button extends LeafComponent {
         this.height = h;
         this.label = label;
 
-        // Automatically respond to dispatched events to alter visuals
         addEventListener(event -> {
             if (event instanceof MouseEvent mouseEvent) {
                 switch (mouseEvent.getType()) {
@@ -53,7 +49,6 @@ public class Button extends LeafComponent {
                     case MOUSE_EXITED -> setState(State.NORMAL);
                     case MOUSE_PRESSED -> setState(State.PRESSED);
                     case MOUSE_RELEASED -> {
-                        // Return to hovered state and fire click action
                         setState(State.HOVERED);
                         click();
                     }
@@ -71,17 +66,10 @@ public class Button extends LeafComponent {
         double absY = (double) getAbsoluteY();
         double w = (double) width;
         double h = (double) height;
-
-        String bgColor = switch (state) {
-            case NORMAL -> normalBg;
-            case HOVERED -> hoveredBg;
-            case PRESSED -> pressedBg;
-        };
-
-        ctx.setFillStyle(bgColor);
-        ctx.beginPath();
         double r = 8.0;
 
+        // Base Path
+        ctx.beginPath();
         ctx.moveTo(absX + r, absY);
         ctx.lineTo(absX + w - r, absY);
         ctx.quadraticCurveTo(absX + w, absY, absX + w, absY + r);
@@ -92,13 +80,24 @@ public class Button extends LeafComponent {
         ctx.lineTo(absX, absY + r);
         ctx.quadraticCurveTo(absX, absY, absX + r, absY);
         ctx.closePath();
+
+        // 1. Draw Normal Background underneath
+        ctx.setFillStyle(normalBg);
         ctx.fill();
 
+        // 2. Draw Hover/Press Overlay with interpolated Alpha
+        if (hoverAlpha > 0.0) {
+            ctx.setGlobalAlpha(hoverAlpha);
+            ctx.setFillStyle(state == State.PRESSED ? pressedBg : hoveredBg);
+            ctx.fill();
+            ctx.setGlobalAlpha(1.0); // Reset for child/text rendering
+        }
+
+        // 3. Draw Label Text
         ctx.setFillStyle(textColor);
         ctx.setFont(font);
         ctx.setTextAlign("center");
         ctx.setTextBaseline("middle");
-
         ctx.fillText(label, absX + (w / 2.0), absY + (h / 2.0));
 
         ctx.setTextAlign("left");
@@ -112,29 +111,35 @@ public class Button extends LeafComponent {
     }
 
     /**
-     * Changes the visual state of the button and queues a redraw.
+     * Changes the state of the button, initiating a smooth Tween to the new visual overlay.
      *
-     * @param s The target State.
+     * @param s The new target state.
      */
     public void setState(State s) {
         if (this.state != s) {
             this.state = s;
-            markDirty();
+
+            // Cancel any ongoing transition to prevent visual tug-of-war
+            if (activeTween != null) {
+                activeTween.cancel();
+            }
+
+            double targetAlpha = (s == State.NORMAL) ? 0.0 : 1.0;
+
+            // Initiate a 300ms transition using Ease-Out Quad for a natural feel
+            activeTween = new Tween(hoverAlpha, targetAlpha, 300, Interpolator.EASE_OUT_QUAD, val -> {
+                this.hoverAlpha = val;
+                this.markDirty(); // Triggers a repaint pipeline every frame during the animation
+            });
+
+            AnimationManager.getInstance().add(activeTween);
         }
     }
 
-    /**
-     * Sets the external callback to be invoked upon a successful click.
-     *
-     * @param handler The logic to execute.
-     */
     public void setOnClick(Runnable handler) {
         this.onClickHandler = handler;
     }
 
-    /**
-     * Executes the click handler.
-     */
     public void click() {
         if (onClickHandler != null) {
             onClickHandler.run();
