@@ -146,6 +146,7 @@ public abstract class Component {
 
     /**
      * Broadcasts a UI event to all registered event listeners.
+     * Visibility upgraded to public so EventDispatcher can trigger it.
      *
      * @param event The event object containing interaction details.
      */
@@ -205,6 +206,19 @@ public abstract class Component {
      * @return true if the component is currently flagged to be drawn.
      */
     public boolean isVisible() { return visible; }
+
+    /**
+     * Updates the visibility of this component. Changing this state forces a layout
+     * recalculation and a visual redraw, as invisible components are excluded from layout math.
+     * * @param visible true to show the component, false to hide it.
+     */
+    public void setVisible(boolean visible) {
+        if (this.visible != visible) {
+            this.visible = visible;
+            invalidate();
+            markDirty();
+        }
+    }
 
     /**
      * Invalidates the current layout state of this component and its ancestors.
