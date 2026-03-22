@@ -27,7 +27,6 @@ public abstract class Container extends Component {
         child.parent = this;
         children.add(child);
 
-        // A structural change requires both a new layout pass and a repaint
         invalidate();
         markDirty();
     }
@@ -86,20 +85,16 @@ public abstract class Container extends Component {
      * is correctly positioned before rendering.
      */
     public void validate() {
-        // If the layout is already valid, do nothing
         if (layoutValid) {
             return;
         }
 
-        // Execute layout if a manager exists
         if (layoutManager != null) {
             layoutManager.layout(this);
         }
 
-        // Flag this level as valid
         this.layoutValid = true;
 
-        // Recursively validate child containers
         for (Component child : children) {
             if (child instanceof Container container) {
                 container.validate();
@@ -111,6 +106,8 @@ public abstract class Container extends Component {
      * Calculates the ideal size for this container.
      * If a LayoutManager is present, it negotiates the size based on children;
      * otherwise, it defaults to the current dimensions.
+     *
+     * @return The preferred Size of the container.
      */
     @Override
     public Size getPreferredSize() {
@@ -129,12 +126,46 @@ public abstract class Container extends Component {
      */
     @Override
     public void invalidate() {
-        // Mark this container's layout as invalid
         this.layoutValid = false;
-
-        // Propagate the invalidation upward so the root knows a change occurred
         if (parent != null) {
             parent.invalidate();
         }
+    }
+
+    /**
+     * Performs a recursive hit-test to find the deepest visible child component
+     * that contains the given screen coordinates.
+     *
+     * @param screenX The absolute X coordinate to test.
+     * @param screenY The absolute Y coordinate to test.
+     * @return The deepest Component at the coordinates, or null if none is hit.
+     */
+    public Component getComponentAt(int screenX, int screenY) {
+        // If the coordinate isn't within this container at all, abort early.
+        if (!isVisible() || !contains(screenX, screenY)) {
+            return null;
+        }
+
+        // Iterate through children in reverse order (top-most visual layer first).
+        for (int i = children.size() - 1; i >= 0; i--) {
+            Component child = children.get(i);
+
+            if (!child.isVisible()) {
+                continue;
+            }
+
+            if (child instanceof Container container) {
+                // Recursively search deeper into nested containers
+                Component hit = container.getComponentAt(screenX, screenY);
+                if (hit != null) {
+                    return hit; // Found a leaf deep inside
+                }
+            } else if (child.contains(screenX, screenY)) {
+                return child; // Found a direct leaf child (like a Button)
+            }
+        }
+
+        // The point is inside this container, but not over any of its children
+        return this;
     }
 }

@@ -9,7 +9,7 @@ import org.teavm.jso.canvas.CanvasRenderingContext2D;
 /**
  * The abstract base class for all UI elements in the CAIRO framework.
  * Defines spatial properties, the composite tree structure, state management,
- * layout constraints, and the core event broadcasting mechanism.
+ * layout constraints, hit testing, and the core event broadcasting mechanism.
  */
 public abstract class Component {
 
@@ -67,8 +67,24 @@ public abstract class Component {
         this.width = width;
         this.height = height;
 
-        invalidate(); // Geometry changed, layout is suspect
-        markDirty();  // Pixels changed, repaint needed
+        invalidate();
+        markDirty();
+    }
+
+    /**
+     * Checks if the specified absolute screen coordinates fall within
+     * the bounds of this component.
+     *
+     * @param screenX The absolute X coordinate to test.
+     * @param screenY The absolute Y coordinate to test.
+     * @return True if the point is inside the component, false otherwise.
+     */
+    public boolean contains(int screenX, int screenY) {
+        if (!visible) return false;
+        int absX = getAbsoluteX();
+        int absY = getAbsoluteY();
+        return screenX >= absX && screenX <= absX + width &&
+                screenY >= absY && screenY <= absY + height;
     }
 
     /**
