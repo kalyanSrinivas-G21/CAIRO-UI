@@ -1,5 +1,7 @@
 package com.uiframework.cairo.core;
 
+import com.uiframework.cairo.event.UIEvent;
+import com.uiframework.cairo.event.UIEventListener;
 import java.util.ArrayList;
 import java.util.List;
 import org.teavm.jso.canvas.CanvasRenderingContext2D;
@@ -7,61 +9,49 @@ import org.teavm.jso.canvas.CanvasRenderingContext2D;
 /**
  * The abstract base class for all UI elements in the CAIRO framework.
  * Defines spatial properties, the composite tree structure, state management,
- * and the core rendering contract.
+ * layout constraints, and the core event broadcasting mechanism.
  */
 public abstract class Component {
 
-    // Spatial fields (relative to parent)
     protected int x;
     protected int y;
     protected int width;
     protected int height;
 
-    // Split State flags for optimized rendering
     protected boolean selfDirty = true;
     protected boolean childDirty = true;
     protected boolean visible = true;
     protected boolean layoutValid = false;
 
-    // Tree structure
     protected Component parent;
-
-    /** Layout metadata describing how this component should be positioned. */
     private Constraints constraints = new Constraints();
 
-    // Observers
     protected List<StateChangeListener> observers = new ArrayList<>();
+    private List<UIEventListener> eventListeners = new ArrayList<>();
 
     /**
      * @return The local X coordinate relative to the parent container.
      */
-    public int getX() {
-        return x;
-    }
+    public int getX() { return x; }
 
     /**
      * @return The local Y coordinate relative to the parent container.
      */
-    public int getY() {
-        return y;
-    }
+    public int getY() { return y; }
 
     /**
      * @return The width of the component in pixels.
      */
-    public int getWidth() {
-        return width;
-    }
+    public int getWidth() { return width; }
 
     /**
      * @return The height of the component in pixels.
      */
-    public int getHeight() {
-        return height;
-    }
+    public int getHeight() { return height; }
 
     /**
      * Sets the local bounds of this component and marks it as dirty.
+     * Triggers layout invalidation and visual repainting.
      *
      * @param x      The new local X coordinate.
      * @param y      The new local Y coordinate.
@@ -69,26 +59,27 @@ public abstract class Component {
      * @param height The new height.
      */
     public void setBounds(int x, int y, int width, int height) {
+        if (this.x == x && this.y == y && this.width == width && this.height == height) {
+            return;
+        }
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
-        markDirty();
+
+        invalidate(); // Geometry changed, layout is suspect
+        markDirty();  // Pixels changed, repaint needed
     }
 
     /**
      * @return True if this specific component's visual state has changed.
      */
-    public boolean isSelfDirty() {
-        return selfDirty;
-    }
+    public boolean isSelfDirty() { return selfDirty; }
 
     /**
      * @return True if a descendant of this component's visual state has changed.
      */
-    public boolean isChildDirty() {
-        return childDirty;
-    }
+    public boolean isChildDirty() { return childDirty; }
 
     /**
      * Clears both dirty flags, indicating the component and its subtree are fully updated.
@@ -104,9 +95,7 @@ public abstract class Component {
      * @param listener The observer to add.
      */
     public void addObserver(StateChangeListener listener) {
-        if (!observers.contains(listener)) {
-            observers.add(listener);
-        }
+        if (!observers.contains(listener)) observers.add(listener);
     }
 
     /**
@@ -119,107 +108,109 @@ public abstract class Component {
     }
 
     /**
+     * Registers an event listener to respond to interactions on this component.
+     *
+     * @param listener The UIEventListener to attach.
+     */
+    public void addEventListener(UIEventListener listener) {
+        if (!eventListeners.contains(listener)) {
+            eventListeners.add(listener);
+        }
+    }
+
+    /**
+     * Removes a previously registered event listener.
+     *
+     * @param listener The UIEventListener to detach.
+     */
+    public void removeEventListener(UIEventListener listener) {
+        eventListeners.remove(listener);
+    }
+
+    /**
+     * Broadcasts a UI event to all registered event listeners.
+     *
+     * @param event The event object containing interaction details.
+     */
+    protected void fireEvent(UIEvent event) {
+        for (UIEventListener listener : eventListeners) {
+            listener.handleEvent(event);
+        }
+    }
+
+    /**
      * Marks this component as dirty, requiring a redraw.
-     * This propagates the child-dirty state up the component tree to the root and
-     * notifies all registered observers.
+     * Propagates the child-dirty state up the component tree.
      */
     public void markDirty() {
         this.selfDirty = true;
-
         for (StateChangeListener observer : observers) {
             observer.onStateChanged(this);
         }
-
-        if (parent != null) {
-            parent.markChildDirty();
-        }
+        if (parent != null) parent.markChildDirty();
     }
 
     /**
      * Marks that a descendant of this component needs a repaint.
-     * Short-circuits if already flagged to optimize deep tree traversal.
      */
     protected void markChildDirty() {
-        if (this.childDirty) {
-            return; // Optimization: Ancestors are already aware
-        }
-
+        if (this.childDirty) return;
         this.childDirty = true;
-
-        if (parent != null) {
-            parent.markChildDirty();
-        }
+        if (parent != null) parent.markChildDirty();
     }
 
     /**
-     * Recursively calculates the absolute X coordinate on the canvas by
-     * adding this component's local X to its parent's absolute X.
+     * Calculates the absolute X coordinate on the canvas.
      *
-     * @return The absolute X coordinate on the canvas.
+     * @return The absolute X coordinate.
      */
     public int getAbsoluteX() {
-        if (parent == null) {
-            return x;
-        }
-        return x + parent.getAbsoluteX();
+        return (parent == null) ? x : x + parent.getAbsoluteX();
     }
 
     /**
-     * Recursively calculates the absolute Y coordinate on the canvas by
-     * adding this component's local Y to its parent's absolute Y.
+     * Calculates the absolute Y coordinate on the canvas.
      *
-     * @return The absolute Y coordinate on the canvas.
+     * @return The absolute Y coordinate.
      */
     public int getAbsoluteY() {
-        if (parent == null) {
-            return y;
-        }
-        return y + parent.getAbsoluteY();
+        return (parent == null) ? y : y + parent.getAbsoluteY();
     }
 
     /**
-     * The core rendering contract. All subclasses must implement their specific
-     * rendering logic using the provided 2D canvas context.
+     * The core rendering contract. Subclasses must implement specific rendering logic.
      *
      * @param ctx The HTML5 Canvas 2D rendering context.
      */
     public abstract void paint(CanvasRenderingContext2D ctx);
 
     /**
-     * @return true if the component is currently flagged to be drawn, false otherwise.
+     * @return true if the component is currently flagged to be drawn.
      */
-    public boolean isVisible() {
-        return visible;
-    }
+    public boolean isVisible() { return visible; }
 
     /**
-     * Invalidates the current layout state of this component and propagates
-     * the invalidation up to the root of the component tree.
+     * Invalidates the current layout state of this component and its ancestors.
      */
     public void invalidate() {
         this.layoutValid = false;
-        if (parent != null) {
-            parent.invalidate();
-        }
+        if (parent != null) parent.invalidate();
     }
 
     /**
-     * Subclasses must implement this to return their desired size
-     * based on their internal content (e.g., text length or image dimensions).
+     * Subclasses must implement this to return their desired size based on content.
+     *
+     * @return The preferred Size of the component.
      */
     public abstract Size getPreferredSize();
 
     /**
      * @return The layout constraints applied to this component.
      */
-    public Constraints getConstraints() {
-        return constraints;
-    }
+    public Constraints getConstraints() { return constraints; }
 
     /**
-     * Updates the layout constraints for this component.
-     * Calling this method automatically triggers a layout invalidation up the tree,
-     * ensuring that the parent container re-evaluates the component's position.
+     * Updates the layout constraints for this component and triggers invalidation.
      *
      * @param constraints The new constraints to apply.
      */
