@@ -2,6 +2,7 @@ package com.uiframework.cairo.render;
 
 import com.uiframework.cairo.core.Component;
 import com.uiframework.cairo.core.Container;
+import com.uiframework.cairo.event.EventDispatcher;
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.canvas.CanvasRenderingContext2D;
 import org.teavm.jso.dom.html.HTMLCanvasElement;
@@ -9,7 +10,7 @@ import org.teavm.jso.dom.html.HTMLDocument;
 
 /**
  * The WebWindow serves as the primary host for the UI framework within the browser.
- * Updated to support responsive root scaling to ensure the UI fills the canvas.
+ * Updated to initialize the EventDispatcher and pipe raw interactions into the UI tree.
  */
 public class WebWindow {
 
@@ -17,6 +18,7 @@ public class WebWindow {
     private final CanvasRenderingContext2D ctx;
     private Component rootComponent;
     private final RenderManager renderManager;
+    private EventDispatcher eventDispatcher;
 
     private int logicalWidth;
     private int logicalHeight;
@@ -46,7 +48,6 @@ public class WebWindow {
             ratio = 2.0;
         }
 
-        // Get the actual size from the browser CSS bounds
         logicalWidth = canvasElement.getClientWidth();
         logicalHeight = canvasElement.getClientHeight();
 
@@ -60,7 +61,8 @@ public class WebWindow {
     }
 
     /**
-     * Sets the root of the component tree and forces it to match the canvas size.
+     * Sets the root of the component tree, forces it to match the canvas size,
+     * and initializes the interaction routing pipeline.
      *
      * @param root The top-level component.
      */
@@ -72,12 +74,15 @@ public class WebWindow {
         this.rootComponent = root;
 
         if (this.rootComponent != null) {
-            // Force the root to fill the logical canvas dimensions
             this.rootComponent.setBounds(0, 0, logicalWidth, logicalHeight);
-
             this.rootComponent.addObserver(this.renderManager);
             this.rootComponent.invalidate();
             this.rootComponent.markDirty();
+
+            // Establish the event pipeline if the root is a container capable of hit-testing
+            if (this.rootComponent instanceof Container container) {
+                this.eventDispatcher = new EventDispatcher(container, canvasElement);
+            }
         }
     }
 

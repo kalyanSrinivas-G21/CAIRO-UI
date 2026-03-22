@@ -145,10 +145,11 @@ public abstract class Component {
 
     /**
      * Broadcasts a UI event to all registered event listeners.
+     * Visibility upgraded to public so EventDispatcher can trigger it.
      *
      * @param event The event object containing interaction details.
      */
-    protected void fireEvent(UIEvent event) {
+    public void fireEvent(UIEvent event) {
         for (UIEventListener listener : eventListeners) {
             listener.handleEvent(event);
         }
