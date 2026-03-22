@@ -7,11 +7,13 @@ import com.uiframework.cairo.core.LeafComponent;
 import com.uiframework.cairo.core.Size;
 import com.uiframework.cairo.event.MouseEvent;
 import com.uiframework.cairo.event.MouseEventType;
+import com.uiframework.cairo.style.StyleKey;
 import org.teavm.jso.canvas.CanvasRenderingContext2D;
 
 /**
  * A concrete UI component representing an interactive button.
- * Uses the Tween engine to perform smooth, 300ms visual transitions on hover.
+ * Relies entirely on the Skin registry for styling, dynamically blending
+ * dark overlays to simulate hover and press states over any custom background.
  */
 public class Button extends LeafComponent {
 
@@ -24,12 +26,6 @@ public class Button extends LeafComponent {
     private String label;
     private State state = State.NORMAL;
     private Runnable onClickHandler;
-
-    private String normalBg = "#007BFF";
-    private String hoveredBg = "#0056b3";
-    private String pressedBg = "#004085";
-    private String textColor = "white";
-    private String font = "bold 14px sans-serif";
 
     // Animation state
     private double hoverAlpha = 0.0;
@@ -66,7 +62,12 @@ public class Button extends LeafComponent {
         double absY = (double) getAbsoluteY();
         double w = (double) width;
         double h = (double) height;
-        double r = 8.0;
+
+        // Resolve stylistic attributes from fallback logic
+        String bg = resolveString(StyleKey.BACKGROUND);
+        String fg = resolveString(StyleKey.FOREGROUND);
+        int r = resolveInt(StyleKey.CORNER_RADIUS);
+        String font = "bold " + resolveInt(StyleKey.FONT_SIZE) + "px " + resolveString(StyleKey.FONT_FAMILY);
 
         // Base Path
         ctx.beginPath();
@@ -82,19 +83,23 @@ public class Button extends LeafComponent {
         ctx.closePath();
 
         // 1. Draw Normal Background underneath
-        ctx.setFillStyle(normalBg);
-        ctx.fill();
+        if (bg != null) {
+            ctx.setFillStyle(bg);
+            ctx.fill();
+        }
 
         // 2. Draw Hover/Press Overlay with interpolated Alpha
         if (hoverAlpha > 0.0) {
             ctx.setGlobalAlpha(hoverAlpha);
-            ctx.setFillStyle(state == State.PRESSED ? pressedBg : hoveredBg);
+            ctx.setFillStyle(state == State.PRESSED ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.15)");
             ctx.fill();
             ctx.setGlobalAlpha(1.0); // Reset for child/text rendering
         }
 
         // 3. Draw Label Text
-        ctx.setFillStyle(textColor);
+        if (fg != null) {
+            ctx.setFillStyle(fg);
+        }
         ctx.setFont(font);
         ctx.setTextAlign("center");
         ctx.setTextBaseline("middle");

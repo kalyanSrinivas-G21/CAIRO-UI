@@ -2,6 +2,9 @@ package com.uiframework.cairo.core;
 
 import com.uiframework.cairo.event.UIEvent;
 import com.uiframework.cairo.event.UIEventListener;
+import com.uiframework.cairo.style.Skin;
+import com.uiframework.cairo.style.Style;
+import com.uiframework.cairo.style.StyleKey;
 import java.util.ArrayList;
 import java.util.List;
 import org.teavm.jso.canvas.CanvasRenderingContext2D;
@@ -26,6 +29,7 @@ public abstract class Component {
 
     protected Component parent;
     private Constraints constraints = new Constraints();
+    private Style localStyle;
 
     protected List<StateChangeListener> observers = new ArrayList<>();
     private List<UIEventListener> eventListeners = new ArrayList<>();
@@ -271,5 +275,54 @@ public abstract class Component {
      */
     public void requestFocus() {
         FocusManager.setFocus(this);
+    }
+
+    // --- Styling Architecture ---
+
+    /**
+     * @return The local style mapping for this specific component instance, creating it if needed.
+     */
+    public Style getLocalStyle() {
+        if (localStyle == null) {
+            localStyle = new Style();
+        }
+        return localStyle;
+    }
+
+    /**
+     * Resolves a styling property by checking the local style first, then falling back
+     * to the global Skin registry.
+     *
+     * @param key The style key to resolve.
+     * @return The resolved object, or null if unassigned globally.
+     */
+    protected Object resolveStyle(StyleKey key) {
+        if (localStyle != null && localStyle.get(key) != null) {
+            return localStyle.get(key);
+        }
+        Style defaultStyle = Skin.getDefaults(this.getClass());
+        if (defaultStyle != null) {
+            return defaultStyle.get(key);
+        }
+        return null;
+    }
+
+    /**
+     * Convenience method to resolve a style property as a String.
+     */
+    protected String resolveString(StyleKey key) {
+        Object val = resolveStyle(key);
+        return val != null ? String.valueOf(val) : null;
+    }
+
+    /**
+     * Convenience method to resolve a style property as an integer.
+     */
+    protected int resolveInt(StyleKey key) {
+        Object val = resolveStyle(key);
+        if (val instanceof Number n) {
+            return n.intValue();
+        }
+        return 0;
     }
 }

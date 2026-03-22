@@ -4,19 +4,15 @@ import com.uiframework.cairo.core.Container;
 import com.uiframework.cairo.core.LayoutManager;
 import com.uiframework.cairo.core.Size;
 import com.uiframework.cairo.layout.FlowLayout;
+import com.uiframework.cairo.style.StyleKey;
 import org.teavm.jso.canvas.CanvasRenderingContext2D;
 
 /**
  * A versatile container component that supports background colors,
  * customizable borders, and rounded corners. Now features automated
- * flow-based layout management by default.
+ * flow-based layout management and global Skin rendering.
  */
 public class Panel extends Container {
-
-    private String backgroundColor;
-    private String borderColor;
-    private int borderWidth = 0;
-    private int cornerRadius = 0;
 
     /**
      * Constructs a Panel with initial bounds and initializes a default FlowLayout.
@@ -60,37 +56,23 @@ public class Panel extends Container {
         }
     }
 
-    /**
-     * Fluent setter for background color.
-     * @param color The CSS color string.
-     * @return This Panel instance.
-     */
+    // --- Fluent Setters (Method Chaining via Style) ---
+
     public Panel withBackground(String color) {
-        this.backgroundColor = color;
+        getLocalStyle().set(StyleKey.BACKGROUND, color);
         markDirty();
         return this;
     }
 
-    /**
-     * Fluent setter for border properties.
-     * @param color The CSS color string.
-     * @param width The border width in pixels.
-     * @return This Panel instance.
-     */
     public Panel withBorder(String color, int width) {
-        this.borderColor = color;
-        this.borderWidth = width;
+        getLocalStyle().set(StyleKey.BORDER_COLOR, color);
+        getLocalStyle().set(StyleKey.BORDER_WIDTH, width);
         markDirty();
         return this;
     }
 
-    /**
-     * Fluent setter for corner radius.
-     * @param radius The radius in pixels.
-     * @return This Panel instance.
-     */
     public Panel withRadius(int radius) {
-        this.cornerRadius = radius;
+        getLocalStyle().set(StyleKey.CORNER_RADIUS, radius);
         markDirty();
         return this;
     }
@@ -113,17 +95,23 @@ public class Panel extends Container {
         double w = (double) width;
         double h = (double) height;
 
-        if (backgroundColor != null) {
-            ctx.setFillStyle(backgroundColor);
+        // Resolve attributes from the Style engine
+        String bgColor = resolveString(StyleKey.BACKGROUND);
+        String borderColor = resolveString(StyleKey.BORDER_COLOR);
+        int borderWidth = resolveInt(StyleKey.BORDER_WIDTH);
+        int cornerRadius = resolveInt(StyleKey.CORNER_RADIUS);
+
+        if (bgColor != null && !bgColor.equals("null") && !bgColor.isEmpty()) {
+            ctx.setFillStyle(bgColor);
             if (cornerRadius > 0) {
-                drawRoundedPath(ctx, absX, absY, w, h);
+                drawRoundedPath(ctx, absX, absY, w, h, cornerRadius);
                 ctx.fill();
             } else {
                 ctx.fillRect(absX, absY, w, h);
             }
         }
 
-        if (borderColor != null && borderWidth > 0) {
+        if (borderColor != null && !borderColor.equals("null") && borderWidth > 0) {
             ctx.setStrokeStyle(borderColor);
             ctx.setLineWidth((double) borderWidth);
 
@@ -131,7 +119,7 @@ public class Panel extends Container {
             double strokeH = h - 1;
 
             if (cornerRadius > 0) {
-                drawRoundedPath(ctx, absX, absY, strokeW, strokeH);
+                drawRoundedPath(ctx, absX, absY, strokeW, strokeH, cornerRadius);
                 ctx.stroke();
             } else {
                 ctx.strokeRect(absX, absY, strokeW, strokeH);
@@ -139,8 +127,7 @@ public class Panel extends Container {
         }
     }
 
-    private void drawRoundedPath(CanvasRenderingContext2D ctx, double x, double y, double w, double h) {
-        double r = (double) cornerRadius;
+    private void drawRoundedPath(CanvasRenderingContext2D ctx, double x, double y, double w, double h, double r) {
         ctx.beginPath();
         ctx.moveTo(x + r, y);
         ctx.lineTo(x + w - r, y);
@@ -158,6 +145,6 @@ public class Panel extends Container {
      * @return The corner radius of this panel.
      */
     public int getCornerRadius() {
-        return this.cornerRadius;
+        return resolveInt(StyleKey.CORNER_RADIUS);
     }
 }
